@@ -7,64 +7,24 @@
     <parent>
         <groupId>me.mrbast.structory</groupId>
         <artifactId>structory-free-parent</artifactId>
-        <version>26.1</version>
+        <version>26.2-SNAPSHOT</version>
     </parent>
 
     <artifactId>structory-free</artifactId>
     <name>Structory Free Plugin</name>
 
     <dependencies>
-        <dependency>
-            <groupId>me.mrbast.structory</groupId>
-            <artifactId>structory-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>it.dadagui</groupId>
-            <artifactId>dadagui-bundle-universal</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>me.mrbast</groupId>
-            <artifactId>Platform</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>me.mrbast</groupId>
-            <artifactId>DadaConfig</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>net.kyori</groupId>
-            <artifactId>adventure-text-serializer-legacy</artifactId>
-            <version>${adventure.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>net.kyori</groupId>
-            <artifactId>adventure-text-minimessage</artifactId>
-            <version>${adventure.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20240303</version>
-        </dependency>
-        <dependency>
-            <groupId>io.papermc.paper</groupId>
-            <artifactId>paper-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.mojang</groupId>
-            <artifactId>authlib</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <scope>test</scope>
-        </dependency>
+        <dependency><groupId>me.mrbast.structory</groupId><artifactId>structory-core</artifactId></dependency>
+        <dependency><groupId>it.dadagui</groupId><artifactId>dadagui-bundle-universal</artifactId></dependency>
+        <dependency><groupId>me.mrbast</groupId><artifactId>Platform</artifactId></dependency>
+        <dependency><groupId>me.mrbast</groupId><artifactId>DadaConfig</artifactId></dependency>
+        <dependency><groupId>net.kyori</groupId><artifactId>adventure-text-serializer-legacy</artifactId><version>${adventure.version}</version></dependency>
+        <dependency><groupId>net.kyori</groupId><artifactId>adventure-text-minimessage</artifactId><version>${adventure.version}</version></dependency>
+        <dependency><groupId>org.json</groupId><artifactId>json</artifactId><version>20240303</version></dependency>
+        <dependency><groupId>io.papermc.paper</groupId><artifactId>paper-api</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>com.mojang</groupId><artifactId>authlib</artifactId><scope>provided</scope></dependency>
+        <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><scope>test</scope></dependency>
     </dependencies>
 
     <build>
@@ -75,29 +35,15 @@
                 <executions>
                     <execution>
                         <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
+                        <goals><goal>shade</goal></goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <finalName>Structory-Free-${project.version}</finalName>
                             <relocations>
-                                <relocation>
-                                    <pattern>net.kyori</pattern>
-                                    <shadedPattern>me.mrbast.structory.libs.kyori</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>me.mrbast.dadaconfig</pattern>
-                                    <shadedPattern>me.mrbast.structory.libs.dadaconfig</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>me.mrbast.dadagui</pattern>
-                                    <shadedPattern>me.mrbast.structory.libs.dadagui</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>me.mrbast.platform</pattern>
-                                    <shadedPattern>me.mrbast.structory.libs.platform</shadedPattern>
-                                </relocation>
+                                <relocation><pattern>net.kyori</pattern><shadedPattern>me.mrbast.structory.libs.kyori</shadedPattern></relocation>
+                                <relocation><pattern>me.mrbast.dadaconfig</pattern><shadedPattern>me.mrbast.structory.libs.dadaconfig</shadedPattern></relocation>
+                                <relocation><pattern>me.mrbast.dadagui</pattern><shadedPattern>me.mrbast.structory.libs.dadagui</shadedPattern></relocation>
+                                <relocation><pattern>me.mrbast.platform</pattern><shadedPattern>me.mrbast.structory.libs.platform</shadedPattern></relocation>
                             </relocations>
                         </configuration>
                     </execution>
