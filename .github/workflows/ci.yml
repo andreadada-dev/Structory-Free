@@ -1,0 +1,58 @@
+name: Structory Free CI
+
+on:
+  push:
+    branches: [main, "hardening/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [17, 21]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Structory Free
+        uses: actions/checkout@v4
+
+      - name: Checkout DadaConfig
+        uses: actions/checkout@v4
+        with:
+          repository: andreadada/DadaConfig
+          path: deps/DadaConfig
+
+      - name: Checkout DadaPlatform
+        uses: actions/checkout@v4
+        with:
+          repository: andreadada/DadaPlatform
+          path: deps/DadaPlatform
+
+      - name: Checkout DadaGUIRework
+        uses: actions/checkout@v4
+        with:
+          repository: andreadada/DadaGUIRework
+          path: deps/DadaGUIRework
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      - name: Install DadaConfig
+        run: mvn -B -f deps/DadaConfig/pom.xml -DskipTests install
+
+      - name: Install DadaPlatform
+        run: mvn -B -f deps/DadaPlatform/pom.xml install
+
+      - name: Install DadaGUIRework
+        run: mvn -B -f deps/DadaGUIRework/pom.xml -DskipTests install
+
+      - name: Verify Structory Free
+        run: mvn -B clean verify
