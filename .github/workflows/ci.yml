@@ -20,6 +20,9 @@ jobs:
       - name: Checkout Structory Free
         uses: actions/checkout@v4
 
+      - name: Enforce Folia scheduler abstraction
+        run: python3 scripts/check-folia-scheduler.py structory-core/src/main/java structory-free/src/main/java
+
       - name: Checkout DadaConfig
         uses: actions/checkout@v4
         with:
