@@ -1,20 +1,23 @@
 package me.mrbast.structory;
 
-
 import me.mrbast.dadagui.bukkit.BukkitGuiManager;
 import me.mrbast.platform.Platform;
 import me.mrbast.structory.async.StructureParticleScheduler;
 import me.mrbast.structory.command.StructoryCommand;
-import me.mrbast.structory.config.*;
+import me.mrbast.structory.config.ConfigInit;
+import me.mrbast.structory.config.MainConfig;
 import me.mrbast.structory.crafting.option.CraftingOption;
 import me.mrbast.structory.listener.AltarGenericInteractionListener;
 import me.mrbast.structory.listener.AltarGriefListener;
 import me.mrbast.structory.listener.AltarInteractionListener;
-import me.mrbast.structory.manager.*;
+import me.mrbast.structory.manager.ConfigManager;
+import me.mrbast.structory.manager.RecipeManager;
+import me.mrbast.structory.manager.SavedItemManager;
+import me.mrbast.structory.manager.StructureInstanceManager;
+import me.mrbast.structory.manager.StructureManager;
 import me.mrbast.structory.metrics.Metrics;
 import me.mrbast.structory.oldblockdata.newer.CustomBlockData;
 import me.mrbast.structory.structure.builder.Builder;
-//import me.mrbast.charms.util.Debugger;
 import me.mrbast.structory.util.SchedulerUtil;
 import me.mrbast.structory.version.Version;
 import org.bukkit.Bukkit;
@@ -28,15 +31,12 @@ public class Structory extends JavaPlugin {
 
     private Metrics metrics;
     private Platform platform;
-    private final Logger LOGGER = this.getLogger();
+    private final Logger logger = getLogger();
     private BukkitGuiManager guiManager;
-
     private StructoryCommand structoryCommand;
 
     @Override
     public void onEnable() {
-
-
         Version.prepare(this);
         platform = Platform.prepare(this);
         SchedulerUtil.init(this, platform);
@@ -47,38 +47,27 @@ public class Structory extends JavaPlugin {
         guiManager.register();
 
         Builder.init();
-
-
-
-
-
         CustomBlockData.registerListener(this);
 
         ConfigManager.getInstance().load();
-
-        OptionManager.getInstance().init();
-
+        me.mrbast.structory.manager.OptionManager.getInstance().init();
         StructureParticleScheduler.getInstance().start();
-
-
-
 
         Bukkit.getServer().getPluginManager().registerEvents(new AltarInteractionListener(), this);
         Bukkit.getServer().getPluginManager().registerEvents(new AltarGenericInteractionListener(), this);
         Bukkit.getServer().getPluginManager().registerEvents(new AltarGriefListener(), this);
 
-        if(MainConfig.getInstance().metrics()) metrics = new Metrics(this, 23235);
-        LOGGER.info("Metrics: " + (metrics != null ? "enabled" : "disabled"));
+        if (MainConfig.getInstance().metrics()) metrics = new Metrics(this, 23235);
+        logger.info("Metrics: " + (metrics != null ? "enabled" : "disabled"));
 
         structoryCommand = new StructoryCommand();
-
         Objects.requireNonNull(getCommand("structory")).setExecutor(structoryCommand);
-        Objects.requireNonNull(getCommand("structory")).setTabCompleter((commandSender, command, s, strings) -> structoryCommand.getArgumentTrie().tabComplete(structoryCommand.getArgumentTrie(), commandSender, command, s, strings));
+        Objects.requireNonNull(getCommand("structory")).setTabCompleter((sender, command, label, args) ->
+                structoryCommand.getArgumentTrie().tabComplete(
+                        structoryCommand.getArgumentTrie(), sender, command, label, args));
 
-        LOGGER.info("Plugin loaded!");
-
+        logger.info("Plugin loaded!");
     }
-
 
     public StructoryCommand getStructoryCommand() {
         return structoryCommand;
@@ -86,17 +75,12 @@ public class Structory extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        super.onDisable();
-
-        if (guiManager != null) {
-            guiManager.unregister();
-        }
+        if (guiManager != null) guiManager.unregister();
         HandlerList.unregisterAll(this);
 
         CraftingOption.getInstance().dropAllRecipeItems();
         StructureParticleScheduler.getInstance().stop();
         SchedulerUtil.shutdown();
-        LOGGER.info("Plugin disabled ! :(");
         if (metrics != null) metrics.shutdown();
 
         RecipeManager.getInstance().clear();
@@ -104,7 +88,7 @@ public class Structory extends JavaPlugin {
         StructureManager.getInstance().clear();
         StructureInstanceManager.getInstance().clear();
 
-        MessageConfig.getInstance().reload();
+        logger.info("Plugin disabled");
     }
 
     public Platform getPlatform() {
