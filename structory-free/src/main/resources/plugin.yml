@@ -8,11 +8,25 @@ folia-supported: true
 
 commands:
   structory:
-    description: Main structory command
+    description: Main Structory command
+    permission: structory.cmd.use
 
 permissions:
   structory.cmd.use:
-    description: Allows /structory command
+    description: Allows /structory
+    default: op
+  structory.cmd.help:
+    description: Allows /structory help
+    default: op
+  structory.cmd.reload:
+    description: Allows /structory reload
+    default: op
+
+  structory.cmd.item.use:
+    description: Allows /structory item
+    default: op
+  structory.cmd.item.help:
+    description: Allows /structory item help
     default: op
   structory.cmd.item.save:
     description: Allows /structory item save <name>
@@ -24,23 +38,30 @@ permissions:
     description: Allows /structory item get <name>
     default: op
   structory.cmd.item.replace:
-    description: Allows /structory item replace <name>, instead of delete, save and reload
+    description: Allows /structory item replace <name>
     default: op
-  structory.cmd.*:
-    description: Wildcard permission
+  structory.cmd.item.*:
+    description: All saved-item commands
     default: op
     children:
+      structory.cmd.item.use: true
+      structory.cmd.item.help: true
       structory.cmd.item.save: true
       structory.cmd.item.get: true
       structory.cmd.item.delete: true
       structory.cmd.item.replace: true
+
+  structory.cmd.*:
+    description: All Structory commands
+    default: op
+    children:
       structory.cmd.use: true
+      structory.cmd.help: true
+      structory.cmd.reload: true
+      structory.cmd.item.*: true
+
   structory.*:
-    description: Wildcard permission
+    description: All Structory permissions
     default: op
     children:
       structory.cmd.*: true
-
-#libraries:
-#  - org.incendo:cloud-core:2.0.0-rc.2
-#  - org.incendo:cloud-paper:2.0.0-beta.8
