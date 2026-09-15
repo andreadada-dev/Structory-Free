@@ -48,6 +48,9 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
+      - name: Normalize DadaConfig CI dependency
+        run: sed -i 's#<artifactId>spigot</artifactId>#<artifactId>spigot-api</artifactId>#' deps/DadaConfig/pom.xml
+
       - name: Install DadaConfig
         run: mvn -B -f deps/DadaConfig/pom.xml -DskipTests install
 
