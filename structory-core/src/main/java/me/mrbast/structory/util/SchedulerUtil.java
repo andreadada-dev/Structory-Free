@@ -2,7 +2,6 @@ package me.mrbast.structory.util;
 
 import me.mrbast.platform.Platform;
 import me.mrbast.platform.scheduler.PlatformTask;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -16,8 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class SchedulerUtil {
 
@@ -174,10 +175,6 @@ public final class SchedulerUtil {
         global(runnable);
     }
 
-    private static JavaPlugin requirePlugin() {
-        return Objects.requireNonNull(plugin, "SchedulerUtil has not been initialized");
-    }
-
     private static AsyncExecutor requireExecutor() {
         return Objects.requireNonNull(asyncExecutor, "SchedulerUtil has not been initialized");
     }
@@ -187,6 +184,8 @@ public final class SchedulerUtil {
     }
 
     public static final class AsyncExecutor {
+        private static final AtomicInteger THREAD_SEQUENCE = new AtomicInteger();
+
         private int corePoolSize = 1;
         private int maxPoolSize = 4;
         private long keepAliveTime = 60L;
@@ -201,10 +200,22 @@ public final class SchedulerUtil {
         public synchronized void init() {
             if (executor != null && !executor.isShutdown()) return;
 
-            executor = new ScheduledThreadPoolExecutor(maxPoolSize, new ThreadPoolExecutor.CallerRunsPolicy());
+            ThreadFactory threadFactory = runnable -> {
+                Thread thread = new Thread(runnable, "Structory-Async-" + THREAD_SEQUENCE.incrementAndGet());
+                thread.setDaemon(true);
+                return thread;
+            };
+
+            executor = new ScheduledThreadPoolExecutor(
+                    maxPoolSize,
+                    threadFactory,
+                    new ThreadPoolExecutor.CallerRunsPolicy()
+            );
             executor.setCorePoolSize(corePoolSize);
             executor.setKeepAliveTime(keepAliveTime, TimeUnit.SECONDS);
             executor.setRemoveOnCancelPolicy(true);
+            executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+            executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
 
             List<Runnable> pending = new ArrayList<>(onInit);
             onInit.clear();
@@ -265,6 +276,7 @@ public final class SchedulerUtil {
                 onEvery = null;
             }
             onEveryTasks.clear();
+            onInit.clear();
 
             executor.shutdown();
             try {
@@ -323,25 +335,61 @@ public final class SchedulerUtil {
             Objects.requireNonNull(task, "task");
         }
 
-        public void setCorePoolSize(int value) {
+        public synchronized void setCorePoolSize(int value) {
             if (value <= 0) throw new IllegalArgumentException("corePoolSize must be positive");
             corePoolSize = value;
+            if (isReady()) executor.setCorePoolSize(value);
         }
 
-        public void setKeepAliveTime(long value) {
+        public synchronized void setKeepAliveTime(long value) {
             if (value < 0) throw new IllegalArgumentException("keepAliveTime cannot be negative");
             keepAliveTime = value;
+            if (isReady()) executor.setKeepAliveTime(value, TimeUnit.SECONDS);
         }
 
-        public void setMaxPoolSize(int value) {
+        public synchronized void setMaxPoolSize(int value) {
             if (value <= 0) throw new IllegalArgumentException("maxPoolSize must be positive");
             maxPoolSize = value;
         }
 
-        public int getCorePoolSize() { return corePoolSize; }
-        public int getMaxPoolSize() { return maxPoolSize; }
-        public long getKeepAliveTime() { return keepAliveTime; }
-        public ScheduledThreadPoolExecutor getExecutor() { return executor; }
+        public int getCorePoolSize() {
+            return corePoolSize;
+        }
+
+        public int getMaxPoolSize() {
+            return maxPoolSize;
+        }
+
+        public long getKeepAliveTime() {
+            return keepAliveTime;
+        }
+
+        public ScheduledThreadPoolExecutor getExecutor() {
+            return executor;
+        }
+
+        public int getActiveCount() {
+            ScheduledThreadPoolExecutor current = executor;
+            return current == null ? 0 : current.getActiveCount();
+        }
+
+        public int getQueueSize() {
+            ScheduledThreadPoolExecutor current = executor;
+            return current == null ? 0 : current.getQueue().size();
+        }
+
+        public long getCompletedTaskCount() {
+            ScheduledThreadPoolExecutor current = executor;
+            return current == null ? 0L : current.getCompletedTaskCount();
+        }
+
+        public int getTrackedTaskCount() {
+            return tasks.size() + onEveryTasks.size() + (onEvery == null ? 0 : 1);
+        }
+
+        public boolean isRunning() {
+            return isReady();
+        }
 
         public static final class TaskChain {
             private final AsyncExecutor executor;
