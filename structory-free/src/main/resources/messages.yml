@@ -1,46 +1,35 @@
-#messages
-
-
-#ERROR
+# messages
 
 altar:
   altar_created: "<white>You've created <yellow>'%structure%'<white> structure !"
   destroy_again_to_break: "<red>Break 1 more time if you want to destroy this structure"
 
-
 error_altar:
   error_block_destroy: "<red>You cannot destroy this block"
-  error_altar_nearby: "<red>Error :(  Distance between structure must be at least 32 blocks"
+  error_altar_nearby: "<red>Error :( Distance between structures must be at least 32 blocks"
 
-#SUCCESS
-
-#CMD
-#SUCCESS
 custom_item:
   custom_item_created: "<yellow>You have created a new custom item named <green>%name%"
   custom_item_deleted: "<yellow>You have deleted <green>%name% <yellow>custom item"
   custom_item_replaced: "<yellow>You have replaced the custom item named <green>%name%"
-#ERROR
+
 error_cmd:
-  player_only: "<red>This command is for player only"
-  custom_item_already_exists: "<red>%name% is already used, use /structory item delete %name%"
+  player_only: "<red>This command can only be used by a player"
+  custom_item_already_exists: "<red>%name% is already used, use /structory item replace %name%"
   custom_item_dont_exists: "<red>%name% is not an existing custom item key"
+  custom_item_limit_reached: "<red>The Free edition supports up to 10 saved custom items"
+  cmd_reload_failed: "<red>Structory could not be reloaded safely. Check the server console."
 
 help:
-  help_main: "<yellow>/structory reload <dark_purple>-<light_purple> reload the plugin<br>
-<yellow>/structory item help <dark_purple>-<light_purple> item section help<br>
-<yellow>/structory layout help <dark_purple>-<light_purple> layout section help<br>
-<yellow>/structory option help <dark_purple>-<light_purple> option section help<br>
-<yellow>/structory crate help <dark_purple>-<light_purple> crate section help"
+  help_main: "<yellow>/structory reload <dark_purple>-<light_purple> reload Structory data and configuration<br>
+<yellow>/structory item help <dark_purple>-<light_purple> item section help"
   help_item: "<yellow>/structory item delete <name> <dark_purple>-<light_purple> delete the custom saved item<br>
-<yellow>/structory item save <name> <dark_purple>-<light_purple> create custom saved item with your held item<br>
+<yellow>/structory item save <name> <dark_purple>-<light_purple> create a custom saved item with your held item<br>
 <yellow>/structory item get <name> <dark_purple>-<light_purple> get a custom saved item<br>
-<yellow>/structory item replace <name> <dark_purple>-<light_purple> replace a saved item with current help item<br>"
+<yellow>/structory item replace <name> <dark_purple>-<light_purple> replace a saved item with the currently held item<br>"
 
 command:
-  no_pex: "<red>Hey ! You can't use this command !"
-  main_command: "<yellow>Use /structory help to view the commands !"
-  command_not_found: "<red>There was a problem executing the command, try again."
-  cmd_reload: "<yellow>You have reloaded the plugin !"
-
-
+  no_pex: "<red>You don't have permission to use this command"
+  main_command: "<yellow>Use /structory help to view the commands"
+  command_not_found: "<red>There was a problem executing the command."
+  cmd_reload: "<yellow>Structory configuration and runtime data reloaded successfully"
