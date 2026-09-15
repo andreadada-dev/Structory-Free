@@ -6,7 +6,7 @@
 
     <groupId>me.mrbast.structory</groupId>
     <artifactId>structory-free-parent</artifactId>
-    <version>26.1</version>
+    <version>26.2-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Structory Free</name>
