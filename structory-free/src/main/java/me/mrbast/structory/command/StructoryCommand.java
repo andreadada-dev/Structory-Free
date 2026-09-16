@@ -49,7 +49,7 @@ public class StructoryCommand implements CommandExecutor {
             return true;
         });
         argumentTrie.setPermission(new Permission("structory.cmd.use"));
-        registerItemTree();
+        registerCommandTree();
     }
 
     @Override
@@ -66,7 +66,7 @@ public class StructoryCommand implements CommandExecutor {
         this.argumentTrie.registerArgument(trie);
     }
 
-    private void registerItemTree() {
+    private void registerCommandTree() {
         ArgumentTrie helpTrie = new ArgumentTrie("help", (sender, command, label, args) -> {
             StructureMessage.HELP_MAIN.send(sender);
             return true;
@@ -82,6 +82,8 @@ public class StructoryCommand implements CommandExecutor {
             }
             return true;
         });
+
+        ArgumentTrie performanceTrie = new ArgumentTrie("performance", new SchedulerDiagnosticsCommand());
 
         ArgumentTrie itemTrie = new ArgumentTrie("item", (sender, cmd, alias, strings) -> {
             StructureMessage.HELP_ITEM.send(sender);
@@ -180,6 +182,7 @@ public class StructoryCommand implements CommandExecutor {
 
         argumentTrie.registerCommand(reloadTrie, "structory.cmd.reload");
         argumentTrie.registerCommand(helpTrie, "structory.cmd.help");
+        argumentTrie.registerCommand(performanceTrie, "structory.cmd.performance");
         argumentTrie.registerCommand(itemTrie, "structory.cmd.item.use");
     }
 }
