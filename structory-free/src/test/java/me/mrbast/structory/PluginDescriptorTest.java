@@ -27,6 +27,7 @@ class PluginDescriptorTest {
                 "structory.cmd.use",
                 "structory.cmd.help",
                 "structory.cmd.reload",
+                "structory.cmd.performance",
                 "structory.cmd.item.use",
                 "structory.cmd.item.help",
                 "structory.cmd.item.save",
@@ -46,6 +47,7 @@ class PluginDescriptorTest {
         assertTrue(plugin.getBoolean("permissions.structory.cmd.*.children.structory.cmd.use"));
         assertTrue(plugin.getBoolean("permissions.structory.cmd.*.children.structory.cmd.help"));
         assertTrue(plugin.getBoolean("permissions.structory.cmd.*.children.structory.cmd.reload"));
+        assertTrue(plugin.getBoolean("permissions.structory.cmd.*.children.structory.cmd.performance"));
         assertTrue(plugin.getBoolean("permissions.structory.cmd.*.children.structory.cmd.item.*"));
         assertTrue(plugin.getBoolean("permissions.structory.*.children.structory.cmd.*"));
     }
