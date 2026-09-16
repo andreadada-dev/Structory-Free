@@ -17,7 +17,7 @@ import java.util.Set;
 
 public class OptionManager {
 
-    public static final OptionManager instance = new OptionManager();
+    private static final OptionManager instance = new OptionManager();
 
     public static OptionManager getInstance() {
         return instance;
@@ -61,7 +61,7 @@ public class OptionManager {
         options.values().forEach(Option::init);
     }
 
-    /** Option definitions are static for the Free edition; runtime caches are cleared by their owners. */
     public void clear() {
+        options.values().forEach(Option::onDisable);
     }
 }
