@@ -19,22 +19,29 @@ The build currently targets:
 - DadaPlatform `26.3`
 - DadaConfig `1.6.2`
 
-The GitHub Actions workflow checks out and installs those repositories before building Structory, so CI does not depend on a pre-populated Maven cache.
+CI and local bootstrap do not follow mutable dependency branches. They fetch the exact source revisions recorded in the workflow/scripts, so rebuilding the same Structory commit does not silently pick up a newer Dada commit.
 
-For a local build, install the matching Dada artifacts in the local Maven repository first, then run:
+For a local Windows build:
 
 ```powershell
+.\scripts\bootstrap-build-deps.ps1
 mvn clean verify
-mvn clean install
 ```
 
-`verify` runs the core and plugin tests. `install` also publishes `structory-core:26.2-SNAPSHOT` to the local Maven repository so the matching Structory Premium development branch can compile against the exact same core.
+On Linux/macOS:
+
+```bash
+bash scripts/bootstrap-build-deps.sh
+mvn clean verify
+```
+
+The bootstrap recreates `.build-deps/`, checks out the pinned Dada revisions and installs their required Maven artifacts. `verify` runs the core and plugin tests. Use `mvn clean install` afterwards when you explicitly want to install `structory-core:26.2-SNAPSHOT` into the local Maven repository.
 
 ## Shared core publishing
 
 The parent POM contains `distributionManagement` for the repository's GitHub Packages Maven registry. `.github/workflows/publish-core.yml` can publish `structory-core` manually or from a `core-v*` tag using the repository `GITHUB_TOKEN`.
 
-This removes the architectural requirement that Premium can only consume a core previously installed by hand on the same machine. The development CI still checks out the matching Free branch directly so it verifies the exact core source under test.
+The publish job is gated by the same stable dependency check used for releases, so it refuses to publish a stable core while mutable non-server snapshot coordinates remain.
 
 ## Compatibility policy
 
@@ -66,14 +73,14 @@ Reload also resets runtime crafting and particle caches before configurations an
 
 ## Stable release gate
 
-The development line intentionally uses snapshots. Stable `v*` tags are guarded by `.github/workflows/release-gate.yml`; publication fails while mutable non-server `-SNAPSHOT` coordinates remain. Paper/Spigot API snapshot coordinates are exempt because those repositories use snapshot coordinates as their normal API distribution convention.
+The development line intentionally uses snapshots. Stable `v*` tags are guarded by `.github/workflows/release-gate.yml`; publication fails while mutable non-server `-SNAPSHOT` coordinates remain or a Maven `systemPath`/`system` dependency is introduced. Paper/Spigot API snapshot coordinates are exempt because those repositories use snapshot coordinates as their normal API distribution convention.
 
 ## CI
 
 `.github/workflows/ci.yml` performs:
 
 - Folia scheduler static guard;
-- Dada dependency bootstrap;
+- exact-SHA Dada dependency bootstrap;
 - Java 17/21 matrix builds;
 - `mvn clean verify` including regression tests for atomic persistence, scheduler lifecycle, event dispatch, command routing, descriptor permissions, saved-item limits and swappable layout orientation;
 - Maven log artifact upload on every run for failure diagnosis;
