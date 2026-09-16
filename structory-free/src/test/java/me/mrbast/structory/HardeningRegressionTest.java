@@ -43,9 +43,39 @@ class HardeningRegressionTest {
     }
 
     @Test
-    void configManagerReloadsMessagesFromDisk() throws Exception {
+    void configManagerReloadsMessagesFromDiskButDoesNotOwnSchedulerLifecycle() throws Exception {
         String source = source("manager/ConfigManager.java");
         assertTrue(source.contains("MessageConfig.getInstance().reload();"));
+        assertFalse(source.contains("SchedulerUtil"));
+        assertFalse(source.contains("getAsyncExecutor().init()"));
+
+        String scheduler = coreSource("util/SchedulerUtil.java");
+        assertOrdered(scheduler,
+                "asyncExecutor = new AsyncExecutor();",
+                "asyncExecutor.init();");
+        assertTrue(scheduler.contains("cancelPlatformTasks();"));
+    }
+
+    @Test
+    void structurePersistenceNeverBlocksRegionThread() throws Exception {
+        String validator = source("structure/validator/StructureValidator.java");
+        String manager = source("manager/StructureInstanceManager.java");
+
+        assertTrue(validator.contains("SchedulerUtil.async(() -> new SingleStructureInstanceConfig(inst).save())"));
+        assertFalse(validator.contains("SchedulerUtil.region(inst.getData().getCenter(), () -> new SingleStructureInstanceConfig(inst).save())"));
+        assertTrue(manager.contains("SchedulerUtil.async(() -> new SingleStructureInstanceConfig(instance).delete())"));
+    }
+
+    @Test
+    void runtimeDiagnosticsAndCompatibilityStatusRemainExposed() throws Exception {
+        String command = source("command/StructoryCommand.java");
+        String version = source("version/Version.java");
+
+        assertTrue(command.contains("new ArgumentTrie(\"performance\", new SchedulerDiagnosticsCommand())"));
+        assertTrue(version.contains("isExplicitlySupported()"));
+        assertTrue(version.contains("1\\\\.(21.*|21|20.*|20|19.*|19)"));
+        assertTrue(version.contains("1\\\\.(17.*|17|18.*|18)"));
+        assertTrue(version.contains("outside Structory's explicit 1.17-1.21 compatibility matrix"));
     }
 
     @Test
@@ -89,5 +119,9 @@ class HardeningRegressionTest {
 
     private static String source(String relativePath) throws IOException {
         return Files.readString(Path.of("src/main/java/me/mrbast/structory", relativePath), StandardCharsets.UTF_8);
+    }
+
+    private static String coreSource(String relativePath) throws IOException {
+        return Files.readString(Path.of("../structory-core/src/main/java/me/mrbast/structory", relativePath), StandardCharsets.UTF_8);
     }
 }
