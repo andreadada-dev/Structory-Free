@@ -11,6 +11,7 @@ import me.mrbast.structory.listener.AltarGenericInteractionListener;
 import me.mrbast.structory.listener.AltarGriefListener;
 import me.mrbast.structory.listener.AltarInteractionListener;
 import me.mrbast.structory.manager.ConfigManager;
+import me.mrbast.structory.manager.OptionManager;
 import me.mrbast.structory.manager.RecipeManager;
 import me.mrbast.structory.manager.SavedItemManager;
 import me.mrbast.structory.manager.StructureInstanceManager;
@@ -50,7 +51,7 @@ public class Structory extends JavaPlugin {
         CustomBlockData.registerListener(this);
 
         ConfigManager.getInstance().load();
-        me.mrbast.structory.manager.OptionManager.getInstance().init();
+        OptionManager.getInstance().init();
         StructureParticleScheduler.getInstance().start();
 
         Bukkit.getServer().getPluginManager().registerEvents(new AltarInteractionListener(), this);
@@ -78,8 +79,15 @@ public class Structory extends JavaPlugin {
         if (guiManager != null) guiManager.unregister();
         HandlerList.unregisterAll(this);
 
-        CraftingOption.getInstance().dropAllRecipeItems();
-        StructureParticleScheduler.getInstance().stop();
+        CraftingOption crafting = CraftingOption.getInstance();
+        crafting.dropAllRecipeItems();
+        crafting.clearRuntimeState();
+
+        StructureParticleScheduler particles = StructureParticleScheduler.getInstance();
+        particles.stop();
+        particles.clear();
+
+        OptionManager.getInstance().clear();
         SchedulerUtil.shutdown();
         if (metrics != null) metrics.shutdown();
 
