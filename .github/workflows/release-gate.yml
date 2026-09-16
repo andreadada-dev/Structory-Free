@@ -1,0 +1,17 @@
+name: Structory Free Release Gate
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  immutable-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject SNAPSHOT release coordinates
+        run: python3 scripts/check-release-dependencies.py pom.xml structory-core/pom.xml structory-free/pom.xml
