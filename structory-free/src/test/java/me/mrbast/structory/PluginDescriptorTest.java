@@ -34,6 +34,18 @@ class PluginDescriptorTest {
             assertTrue(plugin.isConfigurationSection("permissions." + permission),
                     "Missing permission declaration: " + permission);
         }
+
+        for (String permission : List.of(
+                "use", "help", "save", "get", "replace", "delete")) {
+            assertTrue(plugin.getBoolean("permissions.structory.cmd.item.*.children.structory.cmd.item." + permission),
+                    "Saved-item wildcard does not include: " + permission);
+        }
+
+        assertTrue(plugin.getBoolean("permissions.structory.cmd.*.children.structory.cmd.use"));
+        assertTrue(plugin.getBoolean("permissions.structory.cmd.*.children.structory.cmd.help"));
+        assertTrue(plugin.getBoolean("permissions.structory.cmd.*.children.structory.cmd.reload"));
+        assertTrue(plugin.getBoolean("permissions.structory.cmd.*.children.structory.cmd.item.*"));
+        assertTrue(plugin.getBoolean("permissions.structory.*.children.structory.cmd.*"));
     }
 
     private YamlConfiguration load(String resource) throws Exception {
