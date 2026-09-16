@@ -1,5 +1,5 @@
 main: me.mrbast.structory.Structory
-version: ${project.version}
+version: '${project.version}'
 name: Structory
 author: MrBast
 description: Simple structures plugin
