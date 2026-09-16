@@ -3,10 +3,13 @@ package me.mrbast.structory.util;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SchedulerUtilTest {
@@ -36,8 +39,45 @@ class SchedulerUtilTest {
                 Thread.sleep(5L);
             }
             assertTrue(executor.getCompletedTaskCount() >= 1);
+            assertTrue(executor.getSubmittedTaskCount() >= 1);
+            assertEquals(0L, executor.getFailedTaskCount());
         } finally {
             executor.shutdown();
         }
+    }
+
+    @Test
+    void asyncExecutorTracksFailuresWithoutStoppingWorkers() throws Exception {
+        SchedulerUtil.AsyncExecutor executor = new SchedulerUtil.AsyncExecutor();
+        executor.init();
+
+        try {
+            Future<?> failure = executor.async(() -> {
+                throw new IllegalStateException("expected test failure");
+            });
+            assertThrows(ExecutionException.class, () -> failure.get(2, TimeUnit.SECONDS));
+            assertEquals(1L, executor.getFailedTaskCount());
+            assertTrue(executor.isRunning());
+
+            CountDownLatch recovery = new CountDownLatch(1);
+            executor.async(recovery::countDown);
+            assertTrue(recovery.await(2, TimeUnit.SECONDS));
+        } finally {
+            executor.shutdown();
+        }
+    }
+
+    @Test
+    void shutdownClearsExecutorState() {
+        SchedulerUtil.AsyncExecutor executor = new SchedulerUtil.AsyncExecutor();
+        executor.init();
+        assertTrue(executor.isRunning());
+
+        executor.shutdown();
+
+        assertTrue(!executor.isRunning());
+        assertEquals(0, executor.getActiveCount());
+        assertEquals(0, executor.getQueueSize());
+        assertEquals(0, executor.getTrackedTaskCount());
     }
 }
