@@ -30,6 +30,11 @@ class SchedulerUtilTest {
             assertTrue(threadName.get().startsWith("Structory-Async-"));
             assertTrue(executor.isRunning());
             assertEquals(0, executor.getQueueSize());
+
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+            while (executor.getCompletedTaskCount() < 1 && System.nanoTime() < deadline) {
+                Thread.sleep(5L);
+            }
             assertTrue(executor.getCompletedTaskCount() >= 1);
         } finally {
             executor.shutdown();
