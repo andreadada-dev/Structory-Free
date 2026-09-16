@@ -11,24 +11,27 @@ public class StructureParticleRunnable implements Runnable {
 
     private final Map<Structure, AltarParticle> observers = new ConcurrentHashMap<>();
 
-
-    protected StructureParticleRunnable(){
-
+    protected StructureParticleRunnable() {
     }
 
     public void addObserver(final Structure structure, final AltarParticle particle) {
-        this.observers.put(structure, particle);
+        observers.put(structure, particle);
     }
 
     public void removeObserver(Structure observer) {
         observers.remove(observer);
     }
 
+    public void clear() {
+        observers.clear();
+    }
 
+    public int size() {
+        return observers.size();
+    }
 
     @Override
     public void run() {
-
         new ConcurrentHashMap<>(observers).forEach((structure, particle) ->
                 structure.getInstances().forEach(instance -> {
                     org.bukkit.Location center = instance.getData().getCenter();
