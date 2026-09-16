@@ -7,6 +7,7 @@ from pathlib import Path
 
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 ALLOW_SNAPSHOT_PROPERTIES = {"paper.version", "spigot.api.version"}
+ALLOW_SNAPSHOT_GROUPS = {"io.papermc.paper", "org.spigotmc"}
 
 
 def text(node):
@@ -35,8 +36,15 @@ def check_pom(path: Path) -> list[str]:
         group = text(dep.find("m:groupId", NS))
         artifact = text(dep.find("m:artifactId", NS))
         version = text(dep.find("m:version", NS))
-        if version.endswith("-SNAPSHOT") and group not in {"io.papermc.paper", "org.spigotmc"}:
+        scope = text(dep.find("m:scope", NS))
+        system_path = text(dep.find("m:systemPath", NS))
+
+        if version.endswith("-SNAPSHOT") and group not in ALLOW_SNAPSHOT_GROUPS:
             failures.append(f"{path}: dependency {group}:{artifact}:{version}")
+        if scope == "system" or system_path:
+            failures.append(
+                f"{path}: dependency {group}:{artifact} uses non-reproducible system scope/path"
+            )
 
     return failures
 
@@ -48,7 +56,7 @@ def main() -> int:
         failures.extend(check_pom(path))
 
     if failures:
-        print("Stable release gate failed. Resolve mutable SNAPSHOT coordinates before publishing:")
+        print("Stable release gate failed. Resolve mutable/non-reproducible coordinates before publishing:")
         for failure in failures:
             print(f"  - {failure}")
         return 1
