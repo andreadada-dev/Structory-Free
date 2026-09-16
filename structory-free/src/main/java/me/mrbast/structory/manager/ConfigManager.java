@@ -1,7 +1,6 @@
 package me.mrbast.structory.manager;
 
 import me.mrbast.structory.config.*;
-import me.mrbast.structory.util.SchedulerUtil;
 
 public class ConfigManager {
 
@@ -16,6 +15,5 @@ public class ConfigManager {
         StructureConfig.getInstance().load();
         DirectoryStructureInstanceConfig.getInstance().load();
         MessageConfig.getInstance().reload();
-        SchedulerUtil.getAsyncExecutor().init();
     }
 }
