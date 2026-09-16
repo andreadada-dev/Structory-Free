@@ -3,6 +3,7 @@ package me.mrbast.structory.util;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,6 +25,23 @@ class AtomicFileUtilTest {
 
         assertEquals("new", Files.readString(target));
         assertEquals("old", Files.readString(tempDir.resolve("instance.yml.bak")));
+    }
+
+    @Test
+    void failedWriteKeepsOriginalAndRemovesTemporaryFile() throws Exception {
+        Path target = tempDir.resolve("instance.yml");
+        Files.writeString(target, "old", StandardCharsets.UTF_8);
+
+        assertThrows(IOException.class, () -> AtomicFileUtil.writeWithBackup(target.toFile(), file -> {
+            Files.writeString(file.toPath(), "partial", StandardCharsets.UTF_8);
+            throw new IOException("simulated write failure");
+        }));
+
+        assertEquals("old", Files.readString(target));
+        assertFalse(Files.exists(tempDir.resolve("instance.yml.bak")));
+        try (var files = Files.list(tempDir)) {
+            assertTrue(files.noneMatch(path -> path.getFileName().toString().endsWith(".tmp")));
+        }
     }
 
     @Test
