@@ -1,9 +1,7 @@
 package me.mrbast.structory.manager;
 
 import me.mrbast.structory.saveditem.SavedItemProvider;
-import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class SavedItemManagerTest {
 
@@ -38,6 +38,8 @@ class SavedItemManagerTest {
     }
 
     private SavedItemProvider item(String key) {
-        return new SavedItemProvider(new NamespacedKey("structory", key), new ItemStack(Material.STONE));
+        SavedItemProvider provider = mock(SavedItemProvider.class);
+        when(provider.getKey()).thenReturn(new NamespacedKey("structory", key));
+        return provider;
     }
 }
