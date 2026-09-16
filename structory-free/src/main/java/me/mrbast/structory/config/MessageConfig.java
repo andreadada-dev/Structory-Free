@@ -54,22 +54,24 @@ public class MessageConfig extends Config {
         return text;
     }
 
-    private final Map<Message, Formatter> messages = new HashMap<>();
+    private volatile Map<Message, Formatter> messages = Map.of();
 
     @Override
     public synchronized void load() {
-        messages.clear();
+        Map<Message, Formatter> parsed = new HashMap<>();
 
         this.getKeys(false).forEach(key -> this.getSection(key).ifPresent(section ->
                 section.getKeys(false).forEach(messageKey -> {
                     try {
                         StructureMessage message = StructureMessage.valueOf(messageKey.toUpperCase());
                         Optional<String> value = section.readString(messageKey);
-                        messages.put(message, new Formatter(fromLegacy(value.orElse(""))));
+                        parsed.put(message, new Formatter(fromLegacy(value.orElse(""))));
                     } catch (IllegalArgumentException ignored) {
                         // Unknown keys are intentionally ignored for forward/backward compatibility.
                     }
                 })));
+
+        messages = Map.copyOf(parsed);
     }
 
     public Map<Message, Formatter> getMessages() {
@@ -86,6 +88,7 @@ public class MessageConfig extends Config {
             load();
         } catch (IOException | InvalidConfigurationException e) {
             Structory.getPlugin(Structory.class).getLogger().severe("Could not reload messages.yml: " + e.getMessage());
+            throw new IllegalStateException("Could not reload messages.yml", e);
         }
     }
 }
