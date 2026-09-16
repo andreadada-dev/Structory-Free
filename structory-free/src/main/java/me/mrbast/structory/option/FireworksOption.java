@@ -9,7 +9,9 @@ import me.mrbast.structory.structure.Structure;
 import me.mrbast.structory.structure.StructureInstance;
 import me.mrbast.structory.util.ColorUtil;
 import me.mrbast.structory.util.FireworkUtil;
+import me.mrbast.structory.util.SchedulerUtil;
 import org.bukkit.Color;
+import org.bukkit.Location;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,15 +28,12 @@ public class FireworksOption implements Option {
 
         public Fireworks(int amount, int power, boolean flicker, Color[] mainColor, Color[] fadeColor) {
             fireworksSupplier = instance -> {
-                for (int i = 0; i < amount; i++) {
-                    FireworkUtil.prepareFirework(
-                            instance.getData().getCenter().clone().add(0.5, 1.5, 0.5),
-                            power,
-                            flicker,
-                            mainColor,
-                            fadeColor
-                    ).detonate();
-                }
+                Location center = instance.getData().getCenter().clone().add(0.5, 1.5, 0.5);
+                SchedulerUtil.region(center, () -> {
+                    for (int i = 0; i < amount; i++) {
+                        FireworkUtil.prepareFirework(center, power, flicker, mainColor, fadeColor).detonate();
+                    }
+                });
             };
         }
     }
@@ -65,14 +64,8 @@ public class FireworksOption implements Option {
         return result;
     }
 
-    @Override
-    public void write(ConfigSection configSection) {
-    }
-
-    @Override
-    public StructureSpacedKey getKey() {
-        return StructureSpacedKey.OPTION_FIREWORK;
-    }
+    @Override public void write(ConfigSection configSection) { }
+    @Override public StructureSpacedKey getKey() { return StructureSpacedKey.OPTION_FIREWORK; }
 
     private static final Listener eventListener = new Listener() {
         @StructureEventHandler
@@ -82,13 +75,8 @@ public class FireworksOption implements Option {
         }
     };
 
-    @Override
-    public void init(Structure structure) {
-    }
-
-    @Override
-    public void init() {
-    }
+    @Override public void init(Structure structure) { }
+    @Override public void init() { }
 
     @Override
     public void onDisable() {
