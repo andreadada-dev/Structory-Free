@@ -30,6 +30,12 @@ mvn clean install
 
 `verify` runs the core and plugin tests. `install` also publishes `structory-core:26.2-SNAPSHOT` to the local Maven repository so the matching Structory Premium development branch can compile against the exact same core.
 
+## Shared core publishing
+
+The parent POM contains `distributionManagement` for the repository's GitHub Packages Maven registry. `.github/workflows/publish-core.yml` can publish `structory-core` manually or from a `core-v*` tag using the repository `GITHUB_TOKEN`.
+
+This removes the architectural requirement that Premium can only consume a core previously installed by hand on the same machine. The development CI still checks out the matching Free branch directly so it verifies the exact core source under test.
+
 ## Compatibility policy
 
 - Java bytecode target: **16**.
@@ -56,6 +62,12 @@ The guard is an architectural check, not a replacement for runtime testing. Befo
 
 Saved items and structure instances are written through a temporary file, preserve the previous version as `.bak`, and use an atomic move when the filesystem supports it. This reduces the chance of truncated YAML after a crash or interrupted write.
 
+Reload also resets runtime crafting and particle caches before configurations and instances are rebuilt, rather than manually invoking Bukkit's `onDisable()`/`onEnable()` lifecycle callbacks.
+
+## Stable release gate
+
+The development line intentionally uses snapshots. Stable `v*` tags are guarded by `.github/workflows/release-gate.yml`; publication fails while mutable non-server `-SNAPSHOT` coordinates remain. Paper/Spigot API snapshot coordinates are exempt because those repositories use snapshot coordinates as their normal API distribution convention.
+
 ## CI
 
 `.github/workflows/ci.yml` performs:
@@ -63,4 +75,6 @@ Saved items and structure instances are written through a temporary file, preser
 - Folia scheduler static guard;
 - Dada dependency bootstrap;
 - Java 17/21 matrix builds;
-- `mvn clean verify` including regression tests.
+- `mvn clean verify` including regression tests for atomic persistence, scheduler lifecycle, event dispatch, command routing, descriptor permissions, saved-item limits and swappable layout orientation;
+- Maven log artifact upload on every run for failure diagnosis;
+- cancellation of superseded branch runs.
