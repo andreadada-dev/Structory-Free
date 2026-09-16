@@ -15,7 +15,6 @@ class HardeningRegressionTest {
     @Test
     void playerOnlyItemCommandsGuardSenderBeforeCasting() throws Exception {
         String source = source("command/StructoryCommand.java");
-
         assertGuardBeforeCast(source, "new ArgumentTrie(\"save\"", "Player player = (Player) sender");
         assertGuardBeforeCast(source, "new ArgumentTrie(\"get\"", "((Player) sender)");
         assertGuardBeforeCast(source, "new ArgumentTrie(\"replace\"", "Player player = (Player) sender");
@@ -24,22 +23,23 @@ class HardeningRegressionTest {
     @Test
     void reloadCommandUsesDedicatedServiceInsteadOfPluginLifecycleCallbacks() throws Exception {
         String source = source("command/StructoryCommand.java");
-
         assertTrue(source.contains("StructoryReloadService.reload();"));
         assertFalse(source.contains(".onDisable()"));
         assertFalse(source.contains(".onEnable()"));
     }
 
     @Test
-    void reloadClearsRuntimeStateBeforeReloadingConfiguration() throws Exception {
+    void reloadIsSchedulerBarrierThenRebuildsRuntime() throws Exception {
         String source = source("manager/StructoryReloadService.java");
-
         assertOrdered(source,
+                "particleScheduler.stop();",
+                "SchedulerUtil.cancelPlatformTasks();",
                 "crafting.clearRuntimeState();",
                 "StructureInstanceManager.getInstance().clear();",
                 "SavedItemManager.getInstance().clear();",
                 "OptionManager.getInstance().init();",
-                "ConfigManager.getInstance().load();");
+                "ConfigManager.getInstance().load();",
+                "particleScheduler.start();");
     }
 
     @Test
@@ -60,7 +60,6 @@ class HardeningRegressionTest {
     void structurePersistenceNeverBlocksRegionThread() throws Exception {
         String validator = source("structure/validator/StructureValidator.java");
         String manager = source("manager/StructureInstanceManager.java");
-
         assertTrue(validator.contains("SchedulerUtil.async(() -> new SingleStructureInstanceConfig(inst).save())"));
         assertFalse(validator.contains("SchedulerUtil.region(inst.getData().getCenter(), () -> new SingleStructureInstanceConfig(inst).save())"));
         assertTrue(manager.contains("SchedulerUtil.async(() -> new SingleStructureInstanceConfig(instance).delete())"));
@@ -70,7 +69,6 @@ class HardeningRegressionTest {
     void runtimeDiagnosticsAndCompatibilityStatusRemainExposed() throws Exception {
         String command = source("command/StructoryCommand.java");
         String version = source("version/Version.java");
-
         assertTrue(command.contains("new ArgumentTrie(\"performance\", new SchedulerDiagnosticsCommand())"));
         assertTrue(version.contains("isExplicitlySupported()"));
         assertTrue(version.contains("1\\\\.(21.*|21|20.*|20|19.*|19)"));
@@ -80,16 +78,13 @@ class HardeningRegressionTest {
 
     @Test
     void persistenceDirectoryScansIgnoreBackupFiles() throws Exception {
-        assertTrue(source("config/DirectorySavedItemConfig.java")
-                .contains("endsWith(\".yml\")"));
-        assertTrue(source("config/DirectoryStructureInstanceConfig.java")
-                .contains("endsWith(\".yml\")"));
+        assertTrue(source("config/DirectorySavedItemConfig.java").contains("endsWith(\".yml\")"));
+        assertTrue(source("config/DirectoryStructureInstanceConfig.java").contains("endsWith(\".yml\")"));
     }
 
     @Test
     void mainConfigUsesBundledSchemaAndResetsReloadableValues() throws Exception {
         String source = source("config/MainConfig.java");
-
         assertTrue(source.contains("String expectedVersion = bundledConfigVersion();"));
         assertTrue(source.contains("metrics = true;"));
         assertTrue(source.contains("shiftToTake = true;"));
@@ -102,7 +97,6 @@ class HardeningRegressionTest {
         int commandStart = source.indexOf(commandStartToken);
         int guard = source.indexOf("if (!(sender instanceof Player))", commandStart);
         int cast = source.indexOf(castToken, commandStart);
-
         assertTrue(commandStart >= 0, "Missing command branch: " + commandStartToken);
         assertTrue(guard > commandStart, "Missing Player guard for " + commandStartToken);
         assertTrue(cast > guard, "Player cast occurs before sender guard for " + commandStartToken);
