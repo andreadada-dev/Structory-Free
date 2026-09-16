@@ -1,0 +1,93 @@
+package me.mrbast.structory;
+
+import org.junit.jupiter.api.Test;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class HardeningRegressionTest {
+
+    @Test
+    void playerOnlyItemCommandsGuardSenderBeforeCasting() throws Exception {
+        String source = source("command/StructoryCommand.java");
+
+        assertGuardBeforeCast(source, "new ArgumentTrie(\"save\"", "Player player = (Player) sender");
+        assertGuardBeforeCast(source, "new ArgumentTrie(\"get\"", "((Player) sender)");
+        assertGuardBeforeCast(source, "new ArgumentTrie(\"replace\"", "Player player = (Player) sender");
+    }
+
+    @Test
+    void reloadCommandUsesDedicatedServiceInsteadOfPluginLifecycleCallbacks() throws Exception {
+        String source = source("command/StructoryCommand.java");
+
+        assertTrue(source.contains("StructoryReloadService.reload();"));
+        assertFalse(source.contains(".onDisable()"));
+        assertFalse(source.contains(".onEnable()"));
+    }
+
+    @Test
+    void reloadClearsRuntimeStateBeforeReloadingConfiguration() throws Exception {
+        String source = source("manager/StructoryReloadService.java");
+
+        assertOrdered(source,
+                "crafting.clearRuntimeState();",
+                "StructureInstanceManager.getInstance().clear();",
+                "SavedItemManager.getInstance().clear();",
+                "OptionManager.getInstance().init();",
+                "ConfigManager.getInstance().load();");
+    }
+
+    @Test
+    void configManagerReloadsMessagesFromDisk() throws Exception {
+        String source = source("manager/ConfigManager.java");
+        assertTrue(source.contains("MessageConfig.getInstance().reload();"));
+    }
+
+    @Test
+    void persistenceDirectoryScansIgnoreBackupFiles() throws Exception {
+        assertTrue(source("config/DirectorySavedItemConfig.java")
+                .contains("endsWith(\".yml\")"));
+        assertTrue(source("config/DirectoryStructureInstanceConfig.java")
+                .contains("endsWith(\".yml\")"));
+    }
+
+    @Test
+    void mainConfigUsesBundledSchemaAndResetsReloadableValues() throws Exception {
+        String source = source("config/MainConfig.java");
+
+        assertTrue(source.contains("String expectedVersion = bundledConfigVersion();"));
+        assertTrue(source.contains("metrics = true;"));
+        assertTrue(source.contains("shiftToTake = true;"));
+        assertTrue(source.contains("disableItemPickup = true;"));
+        assertTrue(source.contains("distance = 32.0D;"));
+        assertTrue(source.contains("breakConfirmTime = 5000L;"));
+    }
+
+    private static void assertGuardBeforeCast(String source, String commandStartToken, String castToken) {
+        int commandStart = source.indexOf(commandStartToken);
+        int guard = source.indexOf("if (!(sender instanceof Player))", commandStart);
+        int cast = source.indexOf(castToken, commandStart);
+
+        assertTrue(commandStart >= 0, "Missing command branch: " + commandStartToken);
+        assertTrue(guard > commandStart, "Missing Player guard for " + commandStartToken);
+        assertTrue(cast > guard, "Player cast occurs before sender guard for " + commandStartToken);
+    }
+
+    private static void assertOrdered(String source, String... tokens) {
+        int previous = -1;
+        for (String token : tokens) {
+            int index = source.indexOf(token);
+            assertTrue(index > previous, "Expected ordered token: " + token);
+            previous = index;
+        }
+    }
+
+    private static String source(String relativePath) throws IOException {
+        return Files.readString(Path.of("src/main/java/me/mrbast/structory", relativePath), StandardCharsets.UTF_8);
+    }
+}
