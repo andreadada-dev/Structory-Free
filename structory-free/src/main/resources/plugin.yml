@@ -21,6 +21,9 @@ permissions:
   structory.cmd.reload:
     description: Allows /structory reload
     default: op
+  structory.cmd.performance:
+    description: Allows /structory performance runtime diagnostics
+    default: op
 
   structory.cmd.item.use:
     description: Allows /structory item
@@ -58,6 +61,7 @@ permissions:
       structory.cmd.use: true
       structory.cmd.help: true
       structory.cmd.reload: true
+      structory.cmd.performance: true
       structory.cmd.item.*: true
 
   structory.*:
