@@ -8,7 +8,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,7 +18,9 @@ class PluginDescriptorTest {
     void descriptorMatchesRuntimeCommandPermissions() throws Exception {
         YamlConfiguration plugin = load("/plugin.yml");
 
-        assertEquals("26.2-SNAPSHOT", plugin.getString("version"));
+        String version = plugin.getString("version");
+        assertNotNull(version);
+        assertFalse(version.contains("${"), "plugin.yml version was not filtered by Maven");
         assertTrue(plugin.getBoolean("folia-supported"));
 
         for (String permission : List.of(
