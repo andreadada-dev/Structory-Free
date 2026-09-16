@@ -1,0 +1,52 @@
+name: Publish Structory Core
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["core-v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout DadaConfig
+        uses: actions/checkout@v4
+        with:
+          repository: andreadada/DadaConfig
+          path: deps/DadaConfig
+
+      - name: Checkout DadaPlatform
+        uses: actions/checkout@v4
+        with:
+          repository: andreadada/DadaPlatform
+          path: deps/DadaPlatform
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+          cache: maven
+
+      - name: Normalize DadaConfig CI dependency
+        run: sed -i 's#<artifactId>spigot</artifactId>#<artifactId>spigot-api</artifactId>#' deps/DadaConfig/pom.xml
+
+      - name: Install core build dependencies
+        run: |
+          mvn -B -f deps/DadaConfig/pom.xml -DskipTests install
+          mvn -B -f deps/DadaPlatform/pom.xml -DskipTests install
+
+      - name: Publish parent and shared core
+        run: mvn -B -pl structory-core -am -DskipTests deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
