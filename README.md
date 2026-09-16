@@ -48,15 +48,28 @@ The publish job is gated by the same stable dependency check used for releases, 
 - Java bytecode target: **16**.
 - CI verification: **Java 17 and Java 21**.
 - Compile API: Paper `1.19.4-R0.1-SNAPSHOT`.
-- `plugin.yml` keeps `api-version: 1.13` intentionally for the project's broad legacy compatibility strategy; it is not a claim that every server version from 1.13 onward is automatically certified.
-- Version-specific behavior must stay behind the existing compatibility/version abstractions.
-- A Minecraft/Paper/Folia version is considered release-certified only after the release smoke matrix has passed on that server line.
+- Explicit runtime adapter matrix: **Minecraft/Bukkit 1.17 through 1.21**.
+- 1.17/1.18 use `Version1718`; 1.19/1.20/1.21 use `VersionLatest`.
+- Outside that matrix Structory logs a warning and uses `VersionDefault` as a best-effort fallback; that is not a support claim.
+- `plugin.yml` keeps `api-version: 1.13` intentionally for the project's broad legacy compatibility strategy; it is not the certified support floor.
+- A Minecraft/Paper/Folia version is release-certified only after the release smoke matrix has passed on that server line.
 
-## Folia
+Runtime diagnostics expose the detected Bukkit version, selected compatibility adapter and whether the version is explicitly supported.
 
-Structory declares Folia support and routes synchronous work through `SchedulerUtil`/DadaPlatform global, region and entity schedulers. CI includes a source guard that rejects new active uses of the legacy Bukkit scheduler APIs while ignoring comments and string literals.
+## Folia and scheduler contract
 
-The guard is an architectural check, not a replacement for runtime testing. Before a stable release, smoke-test at minimum:
+Structory declares Folia support and routes scheduled work through `SchedulerUtil`/DadaPlatform. Active plugin code must choose the execution context explicitly:
+
+- `SchedulerUtil.global(...)` for server-global state and global commands;
+- `SchedulerUtil.region(location, ...)` for block/world work owned by a region;
+- `SchedulerUtil.entity(entity, ...)` for entity/player-owned work;
+- `SchedulerUtil.async(...)` for file I/O or CPU work that does not touch live Bukkit world/entity state.
+
+The async executor now starts with `SchedulerUtil.init()` and is no longer owned by config reload. Scheduled global/region/entity tasks are tracked and cancelled during shutdown, while async tasks expose submitted/completed/failure diagnostics.
+
+CI rejects direct Bukkit scheduler APIs, raw executor factories, raw `CompletableFuture.*Async` calls and ambiguous legacy `SchedulerUtil.*Sync` aliases outside the scheduler abstraction itself.
+
+Before a stable release, smoke-test at minimum:
 
 1. plugin enable/disable and `/structory reload`;
 2. structure create/destroy across chunks;
@@ -65,9 +78,19 @@ The guard is an architectural check, not a replacement for runtime testing. Befo
 5. chunk unload/reload;
 6. player/entity interactions on Folia region boundaries.
 
+## Runtime diagnostics
+
+Operators with `structory.cmd.performance` can run:
+
+```text
+/structory performance
+```
+
+The command reports platform/Folia mode, compatibility adapter, tracked global/region/entity tasks, scheduler executions/failures, async active/queued/tracked work and submitted/completed/failed async counts.
+
 ## Persistence hardening
 
-Saved items and structure instances are written through a temporary file, preserve the previous version as `.bak`, and use an atomic move when the filesystem supports it. This reduces the chance of truncated YAML after a crash or interrupted write.
+Saved items and structure instances are written through a temporary file, preserve the previous version as `.bak`, and use an atomic move when the filesystem supports it. Disk persistence is dispatched to the async executor instead of blocking Folia region threads.
 
 Reload also resets runtime crafting and particle caches before configurations and instances are rebuilt, rather than manually invoking Bukkit's `onDisable()`/`onEnable()` lifecycle callbacks.
 
@@ -79,9 +102,9 @@ The development line intentionally uses snapshots. Stable `v*` tags are guarded 
 
 `.github/workflows/ci.yml` performs:
 
-- Folia scheduler static guard;
+- Folia/scheduler abstraction static guard;
 - exact-SHA Dada dependency bootstrap;
 - Java 17/21 matrix builds;
-- `mvn clean verify` including regression tests for atomic persistence, scheduler lifecycle, event dispatch, command routing, descriptor permissions, saved-item limits and swappable layout orientation;
+- `mvn clean verify` including regression tests for persistence, scheduler lifecycle, event dispatch, command routing, descriptor permissions, saved-item limits, layout orientation and P2 scheduler invariants;
 - Maven log artifact upload on every run for failure diagnosis;
 - cancellation of superseded branch runs.
