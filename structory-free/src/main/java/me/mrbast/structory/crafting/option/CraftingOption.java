@@ -2,35 +2,37 @@ package me.mrbast.structory.crafting.option;
 
 import me.mrbast.dadaconfig.logic.ConfigSection;
 import me.mrbast.structory.Structory;
+import me.mrbast.structory.crafting.Crafting;
 import me.mrbast.structory.crafting.CraftingSettings;
 import me.mrbast.structory.crafting.decoration.CraftingDecoration;
+import me.mrbast.structory.crafting.layout.RecipeSlotLayout;
 import me.mrbast.structory.crafting.listener.CraftingInteractionListener;
 import me.mrbast.structory.crafting.recipe.Recipe;
 import me.mrbast.structory.crafting.recipe.craftable.DirectDiscoveredRecipe;
 import me.mrbast.structory.crafting.recipe.craftable.DiscoveredRecipe;
 import me.mrbast.structory.crafting.recipe.craftable.GroupDiscoveredRecipe;
 import me.mrbast.structory.enums.StructureSpacedKey;
-import me.mrbast.structory.event.StructureEventHandler;
 import me.mrbast.structory.event.Listener;
 import me.mrbast.structory.event.LoadStructureInstance;
+import me.mrbast.structory.event.StructureEventHandler;
 import me.mrbast.structory.interaction.InteractListener;
-import me.mrbast.structory.manager.RecipeManager;
 import me.mrbast.structory.option.HasInstanceData;
 import me.mrbast.structory.option.InteractableOption;
 import me.mrbast.structory.option.Option;
 import me.mrbast.structory.structure.Structure;
 import me.mrbast.structory.structure.StructureInstance;
-import me.mrbast.structory.crafting.Crafting;
-import me.mrbast.structory.crafting.layout.RecipeSlotLayout;
 import org.bukkit.NamespacedKey;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.checkerframework.checker.units.qual.N;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class CraftingOption implements Option, InteractableOption, HasInstanceData {
-
 
     private static final CraftingOption INSTANCE = new CraftingOption();
 
@@ -38,38 +40,26 @@ public class CraftingOption implements Option, InteractableOption, HasInstanceDa
         return INSTANCE;
     }
 
-
-    /**
-     * Crafting real data of the structure instance
-     */
-    private final Map<StructureInstance, Crafting> craftingMap= new ConcurrentHashMap<>();
-    /**
-     * Structure's Crafting Settings
-     */
+    private final Map<StructureInstance, Crafting> craftingMap = new ConcurrentHashMap<>();
     private final Map<Structure, CraftingSettings> craftingDataMap = new ConcurrentHashMap<>();
+    private final Map<StructureInstance, Set<NamespacedKey>> loadedEventDiscoveredRecipe = new ConcurrentHashMap<>();
+    private final InteractListener interactListener = (instance, event) -> onInteract(event, instance);
 
-    private final Map<StructureInstance, Set<NamespacedKey>> loadeEventDiscoveredRecipe = new ConcurrentHashMap<>();
-
-    private final InteractListener interactListener = ((instance, event) -> this.onInteract(event, instance));
-
-    private CraftingOption(){
-
-        Structory PLUGIN = Structory.getPlugin(Structory.class);
-        PLUGIN.getServer().getPluginManager().registerEvents(new CraftingInteractionListener(this), PLUGIN);
-
+    private CraftingOption() {
+        Structory plugin = Structory.getPlugin(Structory.class);
+        plugin.getServer().getPluginManager().registerEvents(new CraftingInteractionListener(this), plugin);
     }
 
     public void dropAllRecipeItems() {
-
-        craftingMap.forEach((uuid, crafting) -> {
-
-            crafting.dropAll();
-
-        });
-
+        craftingMap.values().forEach(Crafting::dropAll);
     }
 
-
+    /** Clears only configuration/instance runtime caches; Bukkit listeners stay registered once. */
+    public void clearRuntimeState() {
+        craftingMap.clear();
+        craftingDataMap.clear();
+        loadedEventDiscoveredRecipe.clear();
+    }
 
     @Override
     public InteractListener getInteractListener() {
@@ -82,113 +72,59 @@ public class CraftingOption implements Option, InteractableOption, HasInstanceDa
 
     public void onInteract(PlayerInteractEvent event, StructureInstance instance) {
         Crafting crafting = craftingMap.get(instance);
-        if(crafting == null) return;
-
-        crafting.craftEvent(event.getPlayer());
+        if (crafting != null) crafting.craftEvent(event.getPlayer());
     }
 
-
     private final Listener listener = new Listener() {
-
-
         @StructureEventHandler
-        public void onLoad(LoadStructureInstance createEvent){
+        public void onLoad(LoadStructureInstance event) {
+            StructureInstance instance = event.getInstance();
+            CraftingSettings settings = craftingDataMap.get(instance.getData().getStructure());
+            if (settings == null || settings.getRecipeSlotLayout() == null) return;
 
-            StructureInstance instance = createEvent.getInstance();
             Crafting crafting = new Crafting(instance);
-
-            CraftingSettings craftingSettings = craftingDataMap.get(instance.getData().getStructure());
-            if(craftingSettings == null ) return;
-
-            RecipeSlotLayout recipeSlotLayout = craftingSettings.getRecipeSlotLayout();
-            if(recipeSlotLayout == null) return;
-
-
-            recipeSlotLayout.generate(instance, crafting);
+            RecipeSlotLayout layout = settings.getRecipeSlotLayout();
+            layout.generate(instance, crafting);
             craftingMap.put(instance, crafting);
 
+            settings.getDiscoveredRecipes().forEach(discovered ->
+                    discovered.getRecipes().forEach(crafting::discoverRecipe));
 
-            /*
-            RECIPE FROM THE STRUCTURE
-             */
-            craftingSettings.getDiscoveredRecipes().forEach(discoveredRecipe ->{
-                discoveredRecipe.getRecipes().forEach(crafting::discoverRecipe);
-            });
-
-            /*
-            DISCOVERED RECIPE FROM THE INSTANCE
-             */
-
-
-            /*
-            craftingSettings.getDiscoveredRecipes().forEach(discoveredRecipe -> {
-                crafting.getDiscoveredRecipes().addAll(discoveredRecipe.getRecipes());
-            });
-            if(savedRecipes.get(instance) != null) {
-                savedRecipes.get(instance).forEach(discoveredRecipe ->  {
-
-                    crafting.getDiscoveredRecipes().addAll(discoveredRecipe.getRecipes());
-
-                });
+            Set<NamespacedKey> loaded = loadedEventDiscoveredRecipe.remove(instance);
+            if (loaded != null) {
+                loaded.forEach(key -> Optional.ofNullable(me.mrbast.structory.manager.RecipeManager.getInstance().getRecipe(key))
+                        .ifPresent(crafting::discoverRecipe));
             }
-             */
-
-
-            //this.getCrafting().getRecipeSlots().putAll(new DefaultRecipeSlotGenerator().generate(this));
-            /*
-            getCrafting().getRecipeSlots().forEach((key, recipeslot)->{
-
-                Block block = recipeslot.getSlotLocation().getBlock();
-                CustomBlockData blockData = new CustomBlockData(block, PLUGIN);
-                blockData.set(AltarSpacedKey.RECIPE_SLOT.getNamespacedKey(), PersistentDataType.STRING, this.data.getUUID().toString());
-                blockData.set(AltarSpacedKey.RECIPE_SLOT_ID.getNamespacedKey(), PersistentDataType.INTEGER, key);
-
-            });
-
-             */
-
         }
     };
 
-
-
-
-
-
     @Override
     public void read(Structure structure, ConfigSection section) {
-
         CraftingSettings data = new CraftingSettings();
 
-        section.getSection("insert").flatMap(insert -> insert.read(CraftingDecoration.class)).ifPresent(data::setInsert);
-        section.getSection("result").flatMap(craft -> craft.read(CraftingDecoration.class)).ifPresent(data::setCraft);
-        section.getSection("place").flatMap(place -> place.read(CraftingDecoration.class)).ifPresent(data::setPlace);
-        section.getSection("take").flatMap(take -> take.read(CraftingDecoration.class)).ifPresent(data::setTake);
-        section.getSection("consume").flatMap(consume -> consume.read(CraftingDecoration.class)).ifPresent(data::setConsume);
-        section.getSection("recipe-slots").flatMap(offsets -> offsets.read(RecipeSlotLayout.class)).ifPresent(data::setRecipeSlotLayout);
+        section.getSection("insert").flatMap(s -> s.read(CraftingDecoration.class)).ifPresent(data::setInsert);
+        section.getSection("result").flatMap(s -> s.read(CraftingDecoration.class)).ifPresent(data::setCraft);
+        section.getSection("place").flatMap(s -> s.read(CraftingDecoration.class)).ifPresent(data::setPlace);
+        section.getSection("take").flatMap(s -> s.read(CraftingDecoration.class)).ifPresent(data::setTake);
+        section.getSection("consume").flatMap(s -> s.read(CraftingDecoration.class)).ifPresent(data::setConsume);
+        section.getSection("recipe-slots").flatMap(s -> s.read(RecipeSlotLayout.class)).ifPresent(data::setRecipeSlotLayout);
 
-        List<DiscoveredRecipe> discoveredRecipes = new ArrayList<>();
-        if(section.contains("recipe-group")){
-            List<String> list = section.getStringList("recipe-group");
-            list.forEach(groupKey -> discoveredRecipes.add(new GroupDiscoveredRecipe(groupKey)));
+        List<DiscoveredRecipe> discovered = new ArrayList<>();
+        if (section.contains("recipe-group")) {
+            section.getStringList("recipe-group").forEach(key -> discovered.add(new GroupDiscoveredRecipe(key)));
         }
-        if(section.contains("recipes")){
-            List<String> list = section.getStringList("recipes");
-            list.forEach(key -> discoveredRecipes.add(new DirectDiscoveredRecipe(key)));
+        if (section.contains("recipes")) {
+            section.getStringList("recipes").forEach(key -> discovered.add(new DirectDiscoveredRecipe(key)));
         }
-        if(discoveredRecipes.isEmpty()){
-            discoveredRecipes.add(new GroupDiscoveredRecipe("DEFAULT"));
-        }
+        if (discovered.isEmpty()) discovered.add(new GroupDiscoveredRecipe("DEFAULT"));
 
-        data.setDiscoveredRecipes(discoveredRecipes);
+        data.setDiscoveredRecipes(discovered);
         structure.getInteraction().subscribeListener(this);
         craftingDataMap.put(structure, data);
-
     }
 
     @Override
     public void write(ConfigSection configSection) {
-
     }
 
     @Override
@@ -203,14 +139,11 @@ public class CraftingOption implements Option, InteractableOption, HasInstanceDa
 
     @Override
     public void init(Structure structure) {
-
     }
 
     @Override
     public void init() {
-
     }
-
 
     public Optional<CraftingSettings> getCraftingData(Structure structure) {
         return Optional.ofNullable(craftingDataMap.get(structure));
@@ -220,60 +153,39 @@ public class CraftingOption implements Option, InteractableOption, HasInstanceDa
         return craftingDataMap;
     }
 
-
     @Override
     public void load(ConfigSection section, String path, StructureInstance instance) {
-
-
-
         section.getSection("crafting").ifPresent(craftingSection -> {
-
-
             String recipes = craftingSection.getString("discoveredRecipes");
-            if(recipes == null || recipes.isEmpty()) return;
+            if (recipes == null || recipes.isEmpty()) return;
+
             Set<NamespacedKey> keys = ConcurrentHashMap.newKeySet();
-            loadeEventDiscoveredRecipe.put(instance, keys);
-            Arrays.stream(recipes.split("-")).forEach(key->{
-                keys.add(NamespacedKey.fromString(key));
-            });
-
+            loadedEventDiscoveredRecipe.put(instance, keys);
+            Arrays.stream(recipes.split("-"))
+                    .map(NamespacedKey::fromString)
+                    .filter(java.util.Objects::nonNull)
+                    .forEach(keys::add);
         });
-
-
     }
 
     @Override
     public void save(ConfigSection section, String path, StructureInstance instance) {
-
-
         CraftingSettings settings = craftingDataMap.get(instance.getData().getStructure());
+        if (settings == null) return;
 
+        if (!section.contains("crafting")) section.createSection("crafting");
+        section.getSection("crafting").ifPresent(craftingSection ->
+                getCrafting(instance).ifPresent(crafting -> {
+                    List<Recipe> defaults = new ArrayList<>();
+                    settings.getDiscoveredRecipes().forEach(discovered -> defaults.addAll(discovered.getRecipes()));
 
-        if(!section.contains("crafting")) section.createSection("crafting");
-        section.getSection("crafting").ifPresent(craftingSection -> {
-
-            CraftingOption.getInstance().getCrafting(instance).ifPresent(crafting->{
-
-                List<Recipe> recipes = new ArrayList<>();
-                settings.getDiscoveredRecipes().forEach(discoveredRecipe -> recipes.addAll(discoveredRecipe.getRecipes()));
-
-
-                StringBuilder saver = new StringBuilder();
-                crafting.getDiscoveredRecipes().forEach(discoveredRecipe -> {
-                    if(!recipes.contains(discoveredRecipe)) {
-                        saver.append(discoveredRecipe.getKey().getKey()).append("-");
-                    }
-
-                });
-                if(saver.length() == 0) return;
-                saver.delete(saver.length()-1, saver.length());
-
-                craftingSection.write(String.class, "discoveredRecipes", saver.toString());
-
-            });
-
-        });
-
-
+                    StringBuilder saver = new StringBuilder();
+                    crafting.getDiscoveredRecipes().forEach(recipe -> {
+                        if (!defaults.contains(recipe)) saver.append(recipe.getKey()).append('-');
+                    });
+                    if (saver.length() == 0) return;
+                    saver.setLength(saver.length() - 1);
+                    craftingSection.write(String.class, "discoveredRecipes", saver.toString());
+                }));
     }
 }
