@@ -11,6 +11,8 @@ public final class StructoryReloadService {
         CraftingOption crafting = CraftingOption.getInstance();
         crafting.dropAllRecipeItems();
         crafting.clearRuntimeState();
+
+        OptionManager.getInstance().clear();
         StructureParticleScheduler.getInstance().clear();
 
         StructureInstanceManager.getInstance().clear();
@@ -18,6 +20,7 @@ public final class StructoryReloadService {
         RecipeManager.getInstance().clear();
         SavedItemManager.getInstance().clear();
 
+        OptionManager.getInstance().init();
         ConfigManager.getInstance().load();
     }
 }
