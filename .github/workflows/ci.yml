@@ -12,6 +12,11 @@ concurrency:
   group: free-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DADACONFIG_REF: a484e764a4ce285c5bbc2ad27e358bc37104421c
+  DADAPLATFORM_REF: a70fad0760aeb68e22b45d2e6fa30f291c9d2066
+  DADAGUI_REF: 1b1944ec05240cdd4db3212695944636428ac3a2
+
 jobs:
   verify:
     timeout-minutes: 15
@@ -32,18 +37,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: andreadada/DadaConfig
+          ref: ${{ env.DADACONFIG_REF }}
           path: deps/DadaConfig
 
       - name: Checkout DadaPlatform
         uses: actions/checkout@v4
         with:
           repository: andreadada/DadaPlatform
+          ref: ${{ env.DADAPLATFORM_REF }}
           path: deps/DadaPlatform
 
       - name: Checkout DadaGUIRework
         uses: actions/checkout@v4
         with:
           repository: andreadada/DadaGUIRework
+          ref: ${{ env.DADAGUI_REF }}
           path: deps/DadaGUIRework
 
       - name: Set up JDK ${{ matrix.java }}
