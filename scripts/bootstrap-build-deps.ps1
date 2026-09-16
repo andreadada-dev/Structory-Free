@@ -9,6 +9,34 @@ $refs = @{
   DadaGUIRework = "1b1944ec05240cdd4db3212695944636428ac3a2"
 }
 
+function Assert-JavaToolchain {
+  $mavenVersion = & mvn -version 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    throw "Maven is not available on PATH."
+  }
+
+  $javaLine = $mavenVersion | Where-Object { $_ -match '^Java version:' } | Select-Object -First 1
+  if (-not $javaLine) {
+    throw "Unable to determine the Java version used by Maven. Run 'mvn -version' manually."
+  }
+
+  $match = [regex]::Match($javaLine, '^Java version:\s*(\d+)(?:\.(\d+))?')
+  if (-not $match.Success) {
+    throw "Unable to parse Maven Java version from: $javaLine"
+  }
+
+  $major = [int]$match.Groups[1].Value
+  if ($major -eq 1 -and $match.Groups[2].Success) {
+    $major = [int]$match.Groups[2].Value
+  }
+
+  if ($major -lt 17) {
+    throw ("Maven is running with Java {0}. Structory requires JDK 17 or newer. Set JAVA_HOME to JDK 17/21, reopen PowerShell, and verify with 'mvn -version'." -f $major)
+  }
+
+  Write-Host ("Maven Java toolchain OK: Java {0}" -f $major)
+}
+
 function Invoke-Checked {
   param(
     [Parameter(Mandatory=$true)][string]$FilePath,
@@ -30,6 +58,8 @@ function Checkout-PinnedRepo {
   Invoke-Checked -FilePath "git" -ArgumentList @("-C", $Destination, "fetch", "--depth=1", "origin", $Ref)
   Invoke-Checked -FilePath "git" -ArgumentList @("-C", $Destination, "checkout", "--detach", "FETCH_HEAD")
 }
+
+Assert-JavaToolchain
 
 New-Item -ItemType Directory -Force -Path $deps | Out-Null
 Checkout-PinnedRepo "andreadada/DadaConfig" (Join-Path $deps "DadaConfig") $refs.DadaConfig
