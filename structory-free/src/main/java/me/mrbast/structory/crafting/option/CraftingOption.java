@@ -12,10 +12,10 @@ import me.mrbast.structory.crafting.recipe.craftable.DirectDiscoveredRecipe;
 import me.mrbast.structory.crafting.recipe.craftable.DiscoveredRecipe;
 import me.mrbast.structory.crafting.recipe.craftable.GroupDiscoveredRecipe;
 import me.mrbast.structory.enums.StructureSpacedKey;
-import me.mrbast.structory.event.Listener;
 import me.mrbast.structory.event.LoadStructureInstance;
 import me.mrbast.structory.event.StructureEventHandler;
 import me.mrbast.structory.interaction.InteractListener;
+import me.mrbast.structory.manager.RecipeManager;
 import me.mrbast.structory.option.HasInstanceData;
 import me.mrbast.structory.option.InteractableOption;
 import me.mrbast.structory.option.Option;
@@ -54,7 +54,7 @@ public class CraftingOption implements Option, InteractableOption, HasInstanceDa
         craftingMap.values().forEach(Crafting::dropAll);
     }
 
-    /** Clears only configuration/instance runtime caches; Bukkit listeners stay registered once. */
+    /** Clears configuration/instance runtime caches; Bukkit listeners stay registered once. */
     public void clearRuntimeState() {
         craftingMap.clear();
         craftingDataMap.clear();
@@ -75,28 +75,25 @@ public class CraftingOption implements Option, InteractableOption, HasInstanceDa
         if (crafting != null) crafting.craftEvent(event.getPlayer());
     }
 
-    private final Listener listener = new Listener() {
-        @StructureEventHandler
-        public void onLoad(LoadStructureInstance event) {
-            StructureInstance instance = event.getInstance();
-            CraftingSettings settings = craftingDataMap.get(instance.getData().getStructure());
-            if (settings == null || settings.getRecipeSlotLayout() == null) return;
+    @StructureEventHandler
+    public void onLoad(LoadStructureInstance event) {
+        StructureInstance instance = event.getInstance();
+        CraftingSettings settings = craftingDataMap.get(instance.getData().getStructure());
+        if (settings == null || settings.getRecipeSlotLayout() == null) return;
 
-            Crafting crafting = new Crafting(instance);
-            RecipeSlotLayout layout = settings.getRecipeSlotLayout();
-            layout.generate(instance, crafting);
-            craftingMap.put(instance, crafting);
+        Crafting crafting = new Crafting(instance);
+        RecipeSlotLayout layout = settings.getRecipeSlotLayout();
+        layout.generate(instance, crafting);
+        craftingMap.put(instance, crafting);
 
-            settings.getDiscoveredRecipes().forEach(discovered ->
-                    discovered.getRecipes().forEach(crafting::discoverRecipe));
+        settings.getDiscoveredRecipes().forEach(discovered ->
+                discovered.getRecipes().forEach(crafting::discoverRecipe));
 
-            Set<NamespacedKey> loaded = loadedEventDiscoveredRecipe.remove(instance);
-            if (loaded != null) {
-                loaded.forEach(key -> Optional.ofNullable(me.mrbast.structory.manager.RecipeManager.getInstance().getRecipe(key))
-                        .ifPresent(crafting::discoverRecipe));
-            }
+        Set<NamespacedKey> loaded = loadedEventDiscoveredRecipe.remove(instance);
+        if (loaded != null) {
+            loaded.forEach(key -> RecipeManager.getInstance().getRecipe(key).ifPresent(crafting::discoverRecipe));
         }
-    };
+    }
 
     @Override
     public void read(Structure structure, ConfigSection section) {
@@ -181,7 +178,7 @@ public class CraftingOption implements Option, InteractableOption, HasInstanceDa
 
                     StringBuilder saver = new StringBuilder();
                     crafting.getDiscoveredRecipes().forEach(recipe -> {
-                        if (!defaults.contains(recipe)) saver.append(recipe.getKey()).append('-');
+                        if (!defaults.contains(recipe)) saver.append(recipe.getKey().getKey()).append('-');
                     });
                     if (saver.length() == 0) return;
                     saver.setLength(saver.length() - 1);
