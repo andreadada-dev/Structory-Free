@@ -61,6 +61,15 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
+      - name: Ensure Maven
+        shell: bash
+        run: |
+          if ! command -v mvn >/dev/null 2>&1; then
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y maven
+          fi
+          mvn -version
+
       - name: Normalize DadaConfig CI dependency
         run: sed -i 's#<artifactId>spigot</artifactId>#<artifactId>spigot-api</artifactId>#' deps/DadaConfig/pom.xml
 
