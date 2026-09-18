@@ -88,6 +88,40 @@ Operators with `structory.cmd.performance` can run:
 
 The command reports platform/Folia mode, compatibility adapter, tracked global/region/entity tasks, scheduler executions/failures, async active/queued/tracked work and submitted/completed/failed async counts.
 
+## Public addon and event API
+
+P3 introduces a lifecycle-managed extension API shared by Free and Premium. Addons implement `StructoryAddon` from `structory-core` and register through the module-level `StructoryAPI` facade.
+
+```java
+public final class ExampleAddon implements StructoryAddon {
+    @Override
+    public String id() {
+        return "example";
+    }
+
+    @Override
+    public void onEnable(StructoryAddonContext context) {
+        context.subscribe(this);
+    }
+
+    @StructureEventHandler
+    public void onStructureEvent(StructureEvent event) {
+        // React to Structory's existing event model.
+    }
+
+    @Override
+    public void onDisable() {
+        // Release addon-owned resources.
+    }
+}
+
+StructoryAPI.registerAddon(new ExampleAddon());
+```
+
+The registry normalizes addon IDs, rejects duplicates, preserves registration order, disables addons in reverse order, rolls back partially enabled addons and automatically unregisters every listener owned by an addon. A retained `StructoryAddonContext` becomes invalid immediately after unregister/shutdown, preventing stale listener registration.
+
+`StructoryAPI` also exposes standalone event subscription/dispatch, read-only snapshots/lookups for loaded structures and structure instances, registered addon snapshots and scheduler/Folia diagnostics. Runtime mutation remains owned by Structory managers rather than being exposed through the public facade.
+
 ## Persistence hardening
 
 Saved items and structure instances are written through a temporary file, preserve the previous version as `.bak`, and use an atomic move when the filesystem supports it. Disk persistence is dispatched to the async executor instead of blocking Folia region threads.
@@ -105,6 +139,6 @@ The development line intentionally uses snapshots. Stable `v*` tags are guarded 
 - Folia/scheduler abstraction static guard;
 - exact-SHA Dada dependency bootstrap;
 - Java 17/21 matrix builds;
-- `mvn clean verify` including regression tests for persistence, scheduler lifecycle, event dispatch, command routing, descriptor permissions, saved-item limits, layout orientation and P2 scheduler invariants;
+- `mvn clean verify` including regression tests for persistence, scheduler lifecycle, event dispatch, addon lifecycle, command routing, descriptor permissions, saved-item limits, layout orientation and P2 scheduler invariants;
 - Maven log artifact upload on every run for failure diagnosis;
 - cancellation of superseded branch runs.
