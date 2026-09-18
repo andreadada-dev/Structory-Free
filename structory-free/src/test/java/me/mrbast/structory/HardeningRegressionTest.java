@@ -77,6 +77,24 @@ class HardeningRegressionTest {
     }
 
     @Test
+    void publicApiOwnsAddonAndListenerLifecycleBeforeSchedulerShutdown() throws Exception {
+        String api = source("api/StructoryAPI.java");
+        String plugin = source("Structory.java");
+
+        assertTrue(api.contains("new StructoryAddonRegistry("));
+        assertTrue(api.contains("Collections.unmodifiableList(new ArrayList<>("));
+        assertTrue(api.contains("ListenerManager.getInstance().unsubscribe(listener);"));
+        assertTrue(api.contains("addonRegistry.shutdown();"));
+        assertOrdered(plugin,
+                "SchedulerUtil.init(this, platform);",
+                "StructoryAPI.bind(this);",
+                "ConfigInit.init();");
+        assertOrdered(plugin,
+                "StructoryAPI.shutdown();",
+                "SchedulerUtil.shutdown();");
+    }
+
+    @Test
     void persistenceDirectoryScansIgnoreBackupFiles() throws Exception {
         assertTrue(source("config/DirectorySavedItemConfig.java").contains("endsWith(\".yml\")"));
         assertTrue(source("config/DirectoryStructureInstanceConfig.java").contains("endsWith(\".yml\")"));
