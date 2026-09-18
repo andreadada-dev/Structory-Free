@@ -10,6 +10,8 @@ import me.mrbast.structory.structure.Structure;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,7 +36,55 @@ class ListenerManagerTest {
         assertEquals(1, option.nestedCalls.get());
     }
 
+    @Test
+    void arbitraryObjectCanSubscribeAndUnsubscribe() {
+        PlainListener listener = new PlainListener();
+
+        manager.subscribe((Object) listener);
+        manager.call(new TestEvent());
+        manager.unsubscribe(listener);
+        manager.call(new TestEvent());
+
+        assertEquals(1, listener.calls.get());
+    }
+
+    @Test
+    void samePriorityListenersRunInRegistrationOrder() {
+        List<String> calls = new ArrayList<>();
+        manager.subscribe((Object) new OrderedListener("first", calls));
+        manager.subscribe((Object) new OrderedListener("second", calls));
+        manager.subscribe((Object) new OrderedListener("third", calls));
+
+        manager.call(new TestEvent());
+
+        assertEquals(List.of("first", "second", "third"), calls);
+    }
+
     private static final class TestEvent extends StructureEvent {
+    }
+
+    private static final class PlainListener {
+        private final AtomicInteger calls = new AtomicInteger();
+
+        @StructureEventHandler
+        public void onEvent(TestEvent event) {
+            calls.incrementAndGet();
+        }
+    }
+
+    private static final class OrderedListener {
+        private final String id;
+        private final List<String> calls;
+
+        private OrderedListener(String id, List<String> calls) {
+            this.id = id;
+            this.calls = calls;
+        }
+
+        @StructureEventHandler
+        public void onEvent(TestEvent event) {
+            calls.add(id);
+        }
     }
 
     private static final class TestOption implements Option {
