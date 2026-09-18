@@ -44,7 +44,7 @@ public final class StructoryAddonRegistry {
             addon.onEnable(registration.context);
         } catch (RuntimeException | Error error) {
             registrations.remove(id);
-            registration.context.unsubscribeAll();
+            registration.context.deactivateAndUnsubscribeAll();
             try {
                 addon.onDisable();
             } catch (RuntimeException | Error cleanupError) {
@@ -68,7 +68,7 @@ public final class StructoryAddonRegistry {
         } catch (Error error) {
             errorFailure = error;
         } finally {
-            registration.context.unsubscribeAll();
+            registration.context.deactivateAndUnsubscribeAll();
         }
 
         if (runtimeFailure != null) throw runtimeFailure;
@@ -142,6 +142,7 @@ public final class StructoryAddonRegistry {
     private final class TrackingContext implements StructoryAddonContext {
         private final String addonId;
         private final Set<Object> listeners = Collections.newSetFromMap(new IdentityHashMap<>());
+        private boolean active = true;
 
         private TrackingContext(String addonId) {
             this.addonId = addonId;
@@ -156,6 +157,7 @@ public final class StructoryAddonRegistry {
         public void subscribe(Object listener) {
             Object target = Objects.requireNonNull(listener, "listener");
             synchronized (StructoryAddonRegistry.this) {
+                ensureActive();
                 if (!listeners.add(target)) return;
                 try {
                     subscriber.accept(target);
@@ -170,12 +172,19 @@ public final class StructoryAddonRegistry {
         public void unsubscribe(Object listener) {
             if (listener == null) return;
             synchronized (StructoryAddonRegistry.this) {
-                if (!listeners.remove(listener)) return;
+                if (!active || !listeners.remove(listener)) return;
                 unsubscriber.accept(listener);
             }
         }
 
-        private void unsubscribeAll() {
+        private void ensureActive() {
+            if (!active) {
+                throw new IllegalStateException("Structory addon context '" + addonId + "' is no longer active");
+            }
+        }
+
+        private void deactivateAndUnsubscribeAll() {
+            active = false;
             List<Object> snapshot = new ArrayList<>(listeners);
             listeners.clear();
             for (Object listener : snapshot) {
