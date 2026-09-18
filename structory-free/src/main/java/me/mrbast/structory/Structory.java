@@ -2,6 +2,7 @@ package me.mrbast.structory;
 
 import me.mrbast.dadagui.bukkit.BukkitGuiManager;
 import me.mrbast.platform.Platform;
+import me.mrbast.structory.api.StructoryAPI;
 import me.mrbast.structory.async.StructureParticleScheduler;
 import me.mrbast.structory.command.StructoryCommand;
 import me.mrbast.structory.config.ConfigInit;
@@ -41,6 +42,7 @@ public class Structory extends JavaPlugin {
         Version.prepare(this);
         platform = Platform.prepare(this);
         SchedulerUtil.init(this, platform);
+        StructoryAPI.bind(this);
 
         ConfigInit.init();
 
@@ -76,6 +78,8 @@ public class Structory extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        StructoryAPI.shutdown();
+
         if (guiManager != null) guiManager.unregister();
         HandlerList.unregisterAll(this);
 
