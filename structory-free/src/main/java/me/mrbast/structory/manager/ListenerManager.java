@@ -9,9 +9,11 @@ import me.mrbast.structory.option.Option;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -30,6 +32,10 @@ public class ListenerManager {
 
         public void call(StructureEvent event) throws InvocationTargetException, IllegalAccessException {
             method.invoke(target, event);
+        }
+
+        public boolean targets(Object listener) {
+            return target == listener;
         }
 
         @Override
@@ -55,29 +61,36 @@ public class ListenerManager {
         return instance;
     }
 
-    public void clear() {
+    public synchronized void clear() {
         prioritizedListeners.clear();
         willAlsoCall.clear();
     }
 
     private void call(Class<? extends StructureEvent> clazz, StructureEvent event) {
-        Class<? extends StructureEvent> superClazz = willAlsoCall.get(clazz);
+        Class<? extends StructureEvent> superClazz;
+        List<Caller> callers = new ArrayList<>();
+        synchronized (this) {
+            superClazz = willAlsoCall.get(clazz);
+            Map<StructureEventPriority, Set<Caller>> prioritySetMap = prioritizedListeners.get(clazz);
+            if (prioritySetMap != null) {
+                prioritySetMap.values().forEach(callers::addAll);
+            }
+        }
+
         if (superClazz != null) call(superClazz, event);
-
-        Map<StructureEventPriority, Set<Caller>> prioritySetMap = prioritizedListeners.get(clazz);
-        if (prioritySetMap == null) return;
-
-        prioritySetMap.forEach((priority, set) -> set.forEach(caller -> {
+        for (Caller caller : callers) {
             try {
                 caller.call(event);
             } catch (InvocationTargetException | IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
-        }));
+        }
     }
 
     public void call(StructureEvent event) {
-        if (!prioritizedListeners.containsKey(event.getClass())) registerSuperClasses(event.getClass());
+        synchronized (this) {
+            if (!prioritizedListeners.containsKey(event.getClass())) registerSuperClasses(event.getClass());
+        }
         call(event.getClass(), event);
     }
 
@@ -92,6 +105,29 @@ public class ListenerManager {
 
     public void subscribe(Listener listener) {
         subscribeAnnotatedMethods(listener);
+    }
+
+    /**
+     * Registers annotated handlers on arbitrary addon/listener objects.
+     */
+    public void subscribe(Object listener) {
+        subscribeAnnotatedMethods(listener);
+    }
+
+    /**
+     * Removes every handler whose target is this exact listener instance.
+     */
+    public synchronized void unsubscribe(Object listener) {
+        if (listener == null) return;
+
+        prioritizedListeners.entrySet().removeIf(eventEntry -> {
+            TreeMap<StructureEventPriority, Set<Caller>> priorities = eventEntry.getValue();
+            priorities.entrySet().removeIf(priorityEntry -> {
+                priorityEntry.getValue().removeIf(caller -> caller.targets(listener));
+                return priorityEntry.getValue().isEmpty();
+            });
+            return priorities.isEmpty();
+        });
     }
 
     private void subscribeListenerFields(Object owner) {
@@ -109,6 +145,7 @@ public class ListenerManager {
 
     @SuppressWarnings("unchecked")
     private void subscribeAnnotatedMethods(Object target) {
+        if (target == null) return;
         for (Method method : target.getClass().getDeclaredMethods()) {
             if (!method.isAnnotationPresent(StructureEventHandler.class)) continue;
 
@@ -120,16 +157,16 @@ public class ListenerManager {
         }
     }
 
-    private void register(Method method, Object target, StructureEventPriority priority,
-                          Class<? extends StructureEvent> clazz) {
+    private synchronized void register(Method method, Object target, StructureEventPriority priority,
+                                       Class<? extends StructureEvent> clazz) {
         Map<StructureEventPriority, Set<Caller>> map = prioritizedListeners.computeIfAbsent(
                 clazz, ignored -> new TreeMap<>(Comparator.comparingInt(StructureEventPriority::ordinal)));
-        map.computeIfAbsent(priority, ignored -> new HashSet<>()).add(new Caller(method, target));
+        map.computeIfAbsent(priority, ignored -> new LinkedHashSet<>()).add(new Caller(method, target));
         registerSuperClasses(clazz);
     }
 
     @SuppressWarnings("unchecked")
-    private void registerSuperClasses(Class<? extends StructureEvent> clazz) {
+    private synchronized void registerSuperClasses(Class<? extends StructureEvent> clazz) {
         Class<? extends StructureEvent> subClass = clazz;
         Class<?> superclass = clazz.getSuperclass();
         while (superclass != null && StructureEvent.class.isAssignableFrom(superclass)) {
