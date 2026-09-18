@@ -35,6 +35,20 @@ class StructoryAddonRegistryTest {
     }
 
     @Test
+    void staleContextCannotRegisterListenersAfterUnregister() {
+        List<Object> subscribed = new ArrayList<>();
+        StructoryAddonRegistry registry = new StructoryAddonRegistry(subscribed::add, ignored -> { });
+        TestAddon addon = new TestAddon("example");
+        registry.register(addon);
+        StructoryAddonContext staleContext = addon.context;
+
+        registry.unregister("example");
+
+        assertThrows(IllegalStateException.class, () -> staleContext.subscribe(new Object()));
+        assertEquals(2, subscribed.size());
+    }
+
+    @Test
     void duplicateIdsAreRejectedCaseInsensitively() {
         StructoryAddonRegistry registry = new StructoryAddonRegistry(ignored -> { }, ignored -> { });
         registry.register(new TestAddon("Example"));
@@ -59,6 +73,7 @@ class StructoryAddonRegistryTest {
         assertEquals(0, registry.size());
         assertEquals(1, addon.disableCalls.get());
         assertEquals(subscribed.size(), unsubscribed.size());
+        assertThrows(IllegalStateException.class, () -> addon.context.subscribe(new Object()));
     }
 
     @Test
@@ -90,6 +105,7 @@ class StructoryAddonRegistryTest {
         private final String id;
         private final Object extraListener = new Object();
         private final AtomicInteger disableCalls = new AtomicInteger();
+        private StructoryAddonContext context;
 
         private TestAddon(String id) {
             this.id = id;
@@ -102,6 +118,7 @@ class StructoryAddonRegistryTest {
 
         @Override
         public void onEnable(StructoryAddonContext context) {
+            this.context = context;
             context.subscribe(extraListener);
             context.subscribe(extraListener);
         }
